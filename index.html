@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Моя Игротека</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            background-color: #222;
+            color: white;
+            text-align: center;
+            padding: 50px;
+        }
+        h1 { margin-bottom: 40px; }
+        
+        .game-card {
+            background: #444;
+            display: inline-block;
+            margin: 20px;
+            padding: 20px;
+            border-radius: 15px;
+            width: 200px;
+            text-decoration: none;
+            color: white;
+            transition: transform 0.2s;
+            border: 2px solid #666;
+        }
+        .game-card:hover {
+            transform: scale(1.05);
+            background: #555;
+            border-color: #2ed573;
+        }
+        .icon { font-size: 50px; display: block; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+
+    <h1>🎮 Мои Математические Игры</h1>
+
+    <a href="slimes/index.html" class="game-card">
+        <span class="icon">🦠</span>
+        <h3>Слаймы</h3>
+        <p>Стратегия захвата территории</p>
+    </a>
+
+    <a href="#" class="game-card" style="opacity: 0.5">
+        <span class="icon">🚧</span>
+        <h3>Скоро...</h3>
+        <p>Новая игра в разработке</p>
+    </a>
+
+</body>
+</html>
