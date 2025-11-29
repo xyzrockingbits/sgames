@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Битва Слаймов</title>
+    <style>
+        :root {
+            --bg-color: #2c3e50;
+            --board-bg: #34495e;
+            --p1-color: #ff4757; /* Красный */
+            --p2-color: #2ed573; /* Зеленый/Синий */
+            --text-color: #ecf0f1;
+            --hint-clone: rgba(46, 213, 115, 0.5);
+            --hint-jump: rgba(255, 165, 2, 0.5);
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            user-select: none;
+        }
+
+        h1, h2 { margin: 10px 0; }
+
+        /* Экраны */
+        .screen {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            max-width: 600px;
+            padding: 20px;
+        }
+
+        .active { display: flex; }
+
+        /* Правила */
+        .rules-box {
+            background: rgba(0,0,0,0.2);
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            text-align: left;
+            line-height: 1.6;
+        }
+        .rules-box li { margin-bottom: 10px; }
+
+        /* Кнопки */
+        button {
+            background: var(--p2-color);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.2rem;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: transform 0.1s;
+            font-weight: bold;
+            box-shadow: 0 4px 0 #219d53;
+        }
+        button:active { transform: translateY(4px); box-shadow: none; }
+        button.restart { background: #eccc68; box-shadow: 0 4px 0 #c4a954; font-size: 1rem; padding: 10px 20px; margin-top: 20px;}
+
+        /* Счет */
+        .scoreboard {
+            display: flex;
+            gap: 40px;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+        .score-box {
+            padding: 10px 20px;
+            border-radius: 10px;
+            border: 3px solid transparent;
+        }
+        .score-box.active-turn {
+            background: rgba(255,255,255,0.1);
+            border-color: white;
+        }
+        #s-p1 { color: var(--p1-color); }
+        #s-p2 { color: var(--p2-color); }
+
+        /* Игровое поле */
+        #game-board {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 5px;
+            background: var(--board-bg);
+            padding: 10px;
+            border-radius: 10px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+        }
+
+        .cell {
+            width: 50px;
+            height: 50px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 5px;
+            cursor: pointer;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Фишка (Слайм) */
+        .piece {
+            width: 80%;
+            height: 80%;
+            border-radius: 50%;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transform: scale(0);
+        }
+        .piece.show { transform: scale(1); }
+        
+        .p1 { background-color: var(--p1-color); box-shadow: inset -3px -3px 0 rgba(0,0,0,0.2); }
+        .p2 { background-color: var(--p2-color); box-shadow: inset -3px -3px 0 rgba(0,0,0,0.2); }
+        
+        /* Выделение */
+        .selected .piece { border: 3px solid white; }
+        
+        /* Подсказки ходов */
+        .hint {
+            width: 30%;
+            height: 30%;
+            border-radius: 50%;
+        }
+        .hint-clone { background-color: var(--text-color); opacity: 0.5; box-shadow: 0 0 10px white; } /* Ближний ход */
+        .hint-jump { background-color: #ffa502; opacity: 0.8; box-shadow: 0 0 10px #ffa502; } /* Прыжок */
+
+        /* Анимация захвата */
+        .pop-anim {
+            animation: pop 0.4s ease;
+        }
+        @keyframes pop {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.4); }
+            100% { transform: scale(1); }
+        }
+
+        /* Адаптив для мобилок */
+        @media (max-width: 500px) {
+            .cell { width: 40px; height: 40px; }
+            button { padding: 10px 20px; font-size: 1rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="start-screen" class="screen active">
+        <h1>Битва Слаймов 🦠</h1>
+        <div class="rules-box">
+            <h3>Как играть:</h3>
+            <ul>
+                <li>🔴 <strong>Цель:</strong> Закрасить поле своим цветом. У кого больше фишек в конце — тот победил.</li>
+                <li>👯 <strong>Ход 1 - КЛОН:</strong> Кликни на соседнюю клетку. Твой слайм разделится. (Станет на 1 больше).</li>
+                <li>🚀 <strong>Ход 2 - ПРЫЖОК:</strong> Кликни через клетку. Слайм перепрыгнет туда. (Старая клетка освободится).</li>
+                <li>💥 <strong>АТАКА:</strong> Приземлившись рядом с врагами, ты превращаешь их всех в своих!</li>
+            </ul>
+        </div>
+        <button onclick="startGame()">НАЧАТЬ ИГРУ</button>
+    </div>
+
+    <div id="game-screen" class="screen">
+        <div class="scoreboard">
+            <div id="score-p1" class="score-box">🔴 <span id="s-p1">2</span></div>
+            <div id="score-p2" class="score-box">🟢 <span id="s-p2">2</span></div>
+        </div>
+        <h3 id="status-text">Ход Красных</h3>
+        
+        <div id="game-board">
+            </div>
+
+        <button class="restart" onclick="location.reload()">Заново</button>
+    </div>
+
+    <script>
+        // --- КОНФИГУРАЦИЯ ---
+        const BOARD_SIZE = 7;
+        const PLAYER_1 = 1; // Красный
+        const PLAYER_2 = 2; // Зеленый
+        
+        // --- СОСТОЯНИЕ ИГРЫ ---
+        let board = []; 
+        let currentPlayer = PLAYER_1;
+        let selectedCell = null; // {r, c}
+        let possibleMoves = []; // [{r, c, type}] (type: 'clone' or 'jump')
+        let scores = { 1: 2, 2: 2 };
+        let gameActive = false;
+
+        // --- ИНИЦИАЛИЗАЦИЯ ---
+        function startGame() {
+            document.getElementById('start-screen').classList.remove('active');
+            document.getElementById('game-screen').classList.add('active');
+            initBoard();
+            renderBoard();
+            gameActive = true;
+        }
+
+        function initBoard() {
+            // Создаем пустую матрицу 7x7
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                board[r] = [];
+                for (let c = 0; c < BOARD_SIZE; c++) {
+                    board[r][c] = 0;
+                }
+            }
+            // Стартовые позиции (углы)
+            board[0][0] = PLAYER_1;
+            board[BOARD_SIZE-1][BOARD_SIZE-1] = PLAYER_1;
+            board[0][BOARD_SIZE-1] = PLAYER_2;
+            board[BOARD_SIZE-1][0] = PLAYER_2;
+            
+            updateScore();
+        }
+
+        // --- ОТРИСОВКА ---
+        function renderBoard() {
+            const boardEl = document.getElementById('game-board');
+            boardEl.innerHTML = ''; // Очистка
+
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                for (let c = 0; c < BOARD_SIZE; c++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.onclick = () => handleCellClick(r, c);
+
+                    // Если клетка занята, рисуем фишку
+                    if (board[r][c] !== 0) {
+                        const piece = document.createElement('div');
+                        piece.className = `piece ${board[r][c] === PLAYER_1 ? 'p1' : 'p2'} show`;
+                        cell.appendChild(piece);
+                        
+                        // Если эта фишка выбрана
+                        if (selectedCell && selectedCell.r === r && selectedCell.c === c) {
+                            cell.classList.add('selected');
+                        }
+                    }
+
+                    // Если клетка - возможный ход
+                    const move = possibleMoves.find(m => m.r === r && m.c === c);
+                    if (move) {
+                        const hint = document.createElement('div');
+                        hint.className = `hint ${move.type === 'clone' ? 'hint-clone' : 'hint-jump'}`;
+                        cell.appendChild(hint);
+                    }
+
+                    boardEl.appendChild(cell);
+                }
+            }
+            updateStatus();
+        }
+
+        // --- ЛОГИКА ---
+        function handleCellClick(r, c) {
+            if (!gameActive) return;
+
+            const clickedValue = board[r][c];
+
+            // 1. Если кликнули на СВОЮ фишку -> Выбрать её
+            if (clickedValue === currentPlayer) {
+                selectedCell = { r, c };
+                calculateMoves(r, c);
+                renderBoard();
+                return;
+            }
+
+            // 2. Если кликнули на ПОДСВЕЧЕННЫЙ ход -> Сходить
+            const move = possibleMoves.find(m => m.r === r && m.c === c);
+            if (move && selectedCell) {
+                makeMove(selectedCell, move);
+            }
+        }
+
+        function calculateMoves(r, c) {
+            possibleMoves = [];
+            // Проверяем клетки в радиусе 2
+            for (let dr = -2; dr <= 2; dr++) {
+                for (let dc = -2; dc <= 2; dc++) {
+                    const nr = r + dr;
+                    const nc = c + dc;
+
+                    // Проверка границ и пустой клетки
+                    if (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE && board[nr][nc] === 0) {
+                        const dist = Math.max(Math.abs(dr), Math.abs(dc));
+                        if (dist === 1) possibleMoves.push({ r: nr, c: nc, type: 'clone' });
+                        if (dist === 2) possibleMoves.push({ r: nr, c: nc, type: 'jump' });
+                    }
+                }
+            }
+        }
+
+        function makeMove(from, to) {
+            // 1. Ставим новую фишку
+            board[to.r][to.c] = currentPlayer;
+
+            // 2. Если это ПРЫЖОК, убираем старую
+            if (to.type === 'jump') {
+                board[from.r][from.c] = 0;
+            }
+
+            // 3. АССИМИЛЯЦИЯ (превращение соседей)
+            assimilateNeighbors(to.r, to.c);
+
+            // 4. Сброс выбора
+            selectedCell = null;
+            possibleMoves = [];
+
+            // 5. Передача хода
+            currentPlayer = currentPlayer === PLAYER_1 ? PLAYER_2 : PLAYER_1;
+            
+            // 6. Проверка конца игры
+            updateScore();
+            renderBoard();
+            checkWinCondition();
+        }
+
+        function assimilateNeighbors(r, c) {
+            for (let dr = -1; dr <= 1; dr++) {
+                for (let dc = -1; dc <= 1; dc++) {
+                    const nr = r + dr;
+                    const nc = c + dc;
+                    // Если сосед существует и он ВРАГ
+                    if (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE) {
+                        if (board[nr][nc] !== 0 && board[nr][nc] !== currentPlayer) {
+                            board[nr][nc] = currentPlayer; // Меняем цвет!
+                        }
+                    }
+                }
+            }
+        }
+
+        function updateScore() {
+            let p1 = 0;
+            let p2 = 0;
+            let empty = 0;
+
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                for (let c = 0; c < BOARD_SIZE; c++) {
+                    if (board[r][c] === PLAYER_1) p1++;
+                    else if (board[r][c] === PLAYER_2) p2++;
+                    else empty++;
+                }
+            }
+            scores = { 1: p1, 2: p2 };
+            document.getElementById('s-p1').innerText = p1;
+            document.getElementById('s-p2').innerText = p2;
+            
+            return empty; // возвращаем кол-во пустых клеток
+        }
+
+        function updateStatus() {
+            const statusEl = document.getElementById('status-text');
+            const scoreP1 = document.getElementById('score-p1');
+            const scoreP2 = document.getElementById('score-p2');
+
+            if (!gameActive) return;
+
+            if (currentPlayer === PLAYER_1) {
+                statusEl.innerText = "Ход Красных 🔴";
+                statusEl.style.color = "var(--p1-color)";
+                scoreP1.classList.add('active-turn');
+                scoreP2.classList.remove('active-turn');
+            } else {
+                statusEl.innerText = "Ход Зеленых 🟢";
+                statusEl.style.color = "var(--p2-color)";
+                scoreP2.classList.add('active-turn');
+                scoreP1.classList.remove('active-turn');
+            }
+        }
+
+        function checkWinCondition() {
+            const emptyCount = updateScore();
+            const p1Count = scores[1];
+            const p2Count = scores[2];
+            let winner = null;
+
+            // Если поле полное или у кого-то 0 фишек
+            if (emptyCount === 0 || p1Count === 0 || p2Count === 0) {
+                if (p1Count > p2Count) winner = "Красные победили!";
+                else if (p2Count > p1Count) winner = "Зеленые победили!";
+                else winner = "Ничья!";
+                
+                endGame(winner);
+                return;
+            }
+            
+            // Проверка: а может ли текущий игрок вообще сделать ход?
+            // (Простой вариант проверки: если у игрока есть фишки, но некуда ходить - он пропускает ход, 
+            // но для простоты мы закончим игру, если полная блокада)
+            if (!canPlayerMove(currentPlayer)) {
+                 // Передаем ход обратно
+                 currentPlayer = currentPlayer === PLAYER_1 ? PLAYER_2 : PLAYER_1;
+                 // Если и второй не может - конец
+                 if (!canPlayerMove(currentPlayer)) {
+                     endGame("Ни у кого нет ходов!");
+                 } else {
+                     alert("Нет ходов! Ход переходит сопернику.");
+                     renderBoard();
+                 }
+            }
+        }
+
+        function canPlayerMove(player) {
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                for (let c = 0; c < BOARD_SIZE; c++) {
+                    if (board[r][c] === player) {
+                        // Проверяем соседей
+                         for (let dr = -2; dr <= 2; dr++) {
+                            for (let dc = -2; dc <= 2; dc++) {
+                                const nr = r + dr;
+                                const nc = c + dc;
+                                if (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE && board[nr][nc] === 0) {
+                                    return true; // Есть хотя бы один ход
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            return false;
+        }
+
+        function endGame(msg) {
+            gameActive = false;
+            document.getElementById('status-text').innerText = msg;
+            document.getElementById('status-text').style.color = "white";
+            alert(msg + "\nСчет: " + scores[1] + " : " + scores[2]);
+        }
+    </script>
+</body>
+</html>
